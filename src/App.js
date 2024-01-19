@@ -1,9 +1,11 @@
-import React, { Suspense, useRef, useState } from "react";
+import React, { Suspense, useRef } from "react";
 import { Canvas, useFrame, useLoader } from "react-three-fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader"
 import "./App.css"
 import { TextureLoader } from "three";
-
+import { RecoilRoot, useRecoilState, useRecoilValue } from "recoil";
+import { enemyPositionState, laserPositionState, shipPositionState } from "./GameState";
+import GameTimer from './GameTimer'
 function Loading() {
   return (
     <mesh visible position={[0, 0, 0]} rotation={[0, 0, 0]}>
@@ -21,7 +23,7 @@ function Loading() {
 }
 
 function ArWing() {
-  const [shipPosition, setShipPosition] = useState();
+  const [shipPosition, setShipPosition] = useRecoilState(shipPositionState);
 
   const ship = useRef();
   useFrame(({ mouse }) => {
@@ -52,6 +54,53 @@ function ArWing() {
         />
       </mesh>
     </group>
+  );
+}
+
+function Lasers() {
+  const lasers = useRecoilValue(laserPositionState);
+  return (
+    <group>
+      {lasers.map((laser) => (
+        <mesh position={[laser.x, laser.y, laser.z]} key={`${laser.id}`}>
+          <boxGeometry attach="geometry" args={[1, 1, 1]} />
+          <meshStandardMaterial attach="material" emissive="white" wireframe />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function LaserController() {
+  const shipPosition = useRecoilValue(shipPositionState);
+  const [lasers, setLasers] = useRecoilState(laserPositionState);
+  return (
+    <mesh
+      position={[0, 0, -8]}
+      onClick={() =>
+        setLasers([
+          ...lasers,
+          {
+            id: Math.random(),
+            x: 0,
+            y: 0,
+            z: 0,
+            velocity: [
+              shipPosition.rotation.x * 6,
+              shipPosition.rotation.y * 5,
+            ],
+          },
+        ])
+      }
+    >
+      <planeGeometry attach="geometry" args={[100, 100]} />
+      <meshStandardMaterial
+        attach="material"
+        color="orange"
+        emissive="#ff0860"
+        visible={false}
+      />
+    </mesh>
   );
 }
 
@@ -109,15 +158,36 @@ function Target() {
   );
 }
 
+function Enemies() {
+  const enemies = useRecoilValue(enemyPositionState);
+  return (
+    <group>
+      {enemies.map((enemy) => (
+        <mesh position={[enemy.x, enemy.y, enemy.z]} key={`${enemy.x}`}>
+          <sphereGeometry attach="geometry" args={[2, 8, 8]} />
+          <meshStandardMaterial attach="material" color="white" wireframe />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 function App() {
   return (
-    <Canvas style={{ background: "#171717" }}>
-      <directionalLight intensity={0.5} />
-      <Suspense fallback={<Loading />}>
-        <ArWing />
-      </Suspense>
-      <Target />
-      <Terrain/>
+    <Canvas style={{ background: "black" }}>
+      <RecoilRoot>
+        <directionalLight intensity={1} />
+        <ambientLight intensity={0.1} />
+        <Suspense fallback={<Loading />}>
+          <ArWing />
+        </Suspense>
+        <Target />
+        <Enemies />
+        <Lasers />
+        <Terrain/>
+        <LaserController />
+        <GameTimer />
+      </RecoilRoot>
     </Canvas>
   );
 }
